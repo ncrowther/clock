@@ -38,7 +38,8 @@ class NeoPixelRing(object):
     BLUE = (0, 0, 255)
     PURPLE = (180, 0, 255)
     WHITE = (255, 255, 255)
-    COLORS = (WHITE, RED, WHITE, GREEN, WHITE, BLUE, CYAN, PURPLE, WHITE, BLUE)
+    #COLORS = (WHITE, RED, WHITE, GREEN, WHITE, BLUE, CYAN, PURPLE, WHITE, BLUE)
+    COLORS = (WHITE, CYAN, BLUE, PURPLE)
     NUMBER_OF_COLORS = len(COLORS)
 
     def __init__(self): 
@@ -54,6 +55,8 @@ class NeoPixelRing(object):
         
         self.colorIndex = 0
 
+    def setBrightness(self, level):
+        self.BRIGHTNESS = level
 
     def pixels_show(self):
         dimmer_ar = array.array("I", [0 for _ in range(self.NUM_LEDS)])
@@ -82,17 +85,18 @@ class NeoPixelRing(object):
     def color_chase(self, color, wait):
         for i in range(NUM_LEDS)[::-1]:
             previousPixel = 0 if (i == self.NUM_LEDS-1) else i + 1
-            print(i, previousPixel)
+            #print(i, previousPixel)
             self.pixels_set(previousPixel, self.BLACK)
             self.pixels_set(i, color)
             time.sleep(wait)
             self.pixels_show()
             
-    def tick(self, color, i):
+    def tick(self, color, sec):
         
-        pixel = ((i / 59)  * self.NUM_LEDS - 1)
+        reverseSecond = abs(sec - 59)
+            
+        pixel = ((reverseSecond / 59)  * self.NUM_LEDS - 1)
         #previousPixel = 0 if (pixel >= self.NUM_LEDS-3) else pixel + 1
-        print(i,pixel)
         
         pixel = math.ceil(pixel)
         
@@ -146,7 +150,7 @@ class Clock(object):
         self.ds.date_time()
 
         # Set DS1302 datetime to 2024-01-01 Monday 00:00:00
-        #self.ds.date_time([2024, 12, 7, 6, 21, 10, 00])  # (year,month,day,weekday,hour,minute,second)
+        #self.ds.date_time([2024, 12, 10, 2, 11, 39, 00])  # (year,month,day,weekday,hour,minute,second)
 
         # Set seconds to 10
         #self.ds.second(58)
@@ -180,16 +184,20 @@ class OledDisplay(object):
         self.oled.fill(0)
         self.oled.show()
 
-    def showDateTime(self, date, time):
-
+    def showDateTime(self, year, month, day, hour, minute, sec):
+        
+        showDate = "{:0>2}/{:0>2}/{:0>2}".format(day,month,year)
+      
+        showTime = "{:0>2}:{:0>2}:{:0>2}".format(hour,minute,sec)
+    
         # clear 
         self.oledClearBlack()
 
         # Display text on the OLED screen
-        self.oled.text('Date ' + date, 0, 0)  # Display "Hello," at position (0, 0)
+        self.oled.text('Date ' + showDate, 0, 0)  # Display "Hello," at position (0, 0)
         #oled.text(date, 0, 16)  # Display at position (0, 16)
         
-        self.oled.text('Time ' + time, 0, 32)  # Display "Hello," at position (0, 0)
+        self.oled.text('Time ' + showTime, 0, 32)  # Display "Hello," at position (0, 0)
         #oled.text(time, 0, 48)  # Display at position (0, 16)
         
         self.oled.show()
@@ -225,19 +233,7 @@ class ServoMotor(object):
         )  # Map pulse width to duty cycle
         self.servo.duty_u16(duty)  # Set PWM duty cycle
 
-    def testChime(self):
-                        
-        # Sweep the servo from 0 to 180 degrees
-        for angle in range(140):
-            self.servo_write(angle)
-            time.sleep_ms(100)  # Short delay for smooth movement
-
-        # Sweep the servo back from 180 to 0 degrees
-        for angle in range(140, -1, -1):
-            self.servo_write(angle)
-            time.sleep_ms(30)  # Short delay for smooth movement
-
-    def chime(self):
+    def loudChime(self):
                         
         # Sweep the servo from 0 to 180 degrees
         for angle in range(140):
@@ -247,32 +243,60 @@ class ServoMotor(object):
         # Sweep the servo back from 180 to 0 degrees
         for angle in range(140, -1, -1):
             self.servo_write(angle)
-            time.sleep_ms(30)  # Short delay for smooth movement
+            time.sleep_ms(40)  # Short delay for smooth movement
+            
 
-    def hourlyChime(self, hour):
-        
+    def quietChime(self):
+                        
+        # Sweep the servo from 0 to 120 degrees
+        for angle in range(120):
+            self.servo_write(angle)
+            time.sleep_ms(10)  # Short delay for smooth movement
+            
+        for angle in range(120,140):
+            self.servo_write(angle)
+            time.sleep_ms(40)  # Short delay for smooth movement            
+
+        # Sweep the servo back from 180 to 0 degrees
+        for angle in range(140, -1, -1):
+            self.servo_write(angle)
+            time.sleep_ms(00)  # Short delay for smooth movement
+
+    def hourlyChime(self, hour, loud):
+              
+        if (hour == 0):
+            hour = 12 # Strike 12 at midnight
+            
         if (hour > 12):
             hour = hour -12 # convert from 24 to 12 hour clock to reduce the number of dongs
 
         for x in range(hour):
-            print("Dong " + str(x))                 
-            self.chime()
+            print("Dong " + str(x))
+            
+            if (loud):
+                self.loudChime()
+            else:
+                self.quietChime()
          
 ##############################
             
 class Button(object):
 
-    def __init__(self):     
+    def __init__(self, pinNumber):     
         # Set GPIO 17 as an input pin to read the button state
-        self.button1 = Pin(17, Pin.IN)
+        self.button = Pin(pinNumber, Pin.IN)
 
         # Initialize the onboard LED of the Raspberry Pi Pico W
         self.led = Pin('LED', Pin.OUT)
 
-    def testChime(self, servo):
-        if self.button1.value() == 1:  # Check if the button is pressed
+    def chime(self, servo, loud):
+        if self.button.value() == 1:  # Check if the button is pressed
             self.led.value(1)  # Turn on the LED and start a test chime
-            servo.testChime()
+            
+            if (loud):
+                servo.loudChime()
+            else:
+                servo.quietChime()
         else:
             self.led.value(0)  # Turn off the LED
             
@@ -291,40 +315,42 @@ neoPixel.pixels_fill(NeoPixelRing.BLACK)
 
 color = neoPixel.getNextColor()
 
-button = Button()
+button1 = Button(17)
+button2 = Button(15)
 
 while True:
 
     datetime = clock.getDateTime()
-        
+    
     year = datetime[0]
     month = datetime[1]
     day = datetime[2]
     
-    showDate = "{:0>2}/{:0>2}/{:0>2}".format(day,month,year)
-
     hour = datetime[4]
     minute = datetime[5]
     sec = datetime[6]
-  
-    showTime = "{:0>2}:{:0>2}:{:0>2}".format(hour,minute,sec)
-
-    display.showDateTime(showDate, showTime)
-         
-    if (sec == 0):
-        color = neoPixel.getNextColor()
-        
-    reverseSecond = abs(sec - 59)        
-    
-    neoPixel.tick(color, reverseSecond)
+          
+    display.showDateTime(year, month, day, hour, minute, sec)
       
-    
-    if (hour > 7 and hour <= 23) and (minute == 0 and sec == 0):
-        neoPixel.rainbow_cycle(0)
-        servoMotor.hourlyChime(hour)
-        neoPixel.pixels_fill(NeoPixelRing.BLACK)
+    if (hour in [8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23]):
         
-    button.testChime(servoMotor)
+        if (sec == 0):
+            color = neoPixel.getNextColor()
+        
+        neoPixel.tick(color, sec)   
+             
+        if (minute == 0 and sec < 5):
+            neoPixel.rainbow_cycle(0)
+            servoMotor.hourlyChime(hour, loud)
+            neoPixel.pixels_fill(NeoPixelRing.BLACK)
+    else:
+        neoPixel.pixels_fill(NeoPixelRing.BLACK)
+        neoPixel.pixels_show()
+        
+    button1.chime(servoMotor, False)        
+    button2.chime(servoMotor, True)
+    loud = False
+    #loud = button3.toggleLoudness()         
              
     time.sleep(1)
     
