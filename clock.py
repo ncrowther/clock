@@ -233,50 +233,49 @@ class ServoMotor(object):
         )  # Map pulse width to duty cycle
         self.servo.duty_u16(duty)  # Set PWM duty cycle
 
-    def loudChime(self):
-                        
-        # Sweep the servo from 0 to 180 degrees
-        for angle in range(140):
-            self.servo_write(angle)
-            time.sleep_ms(0)  # Short delay for smooth movement
+    def chime(self, volume):
+        
+        if (volume > 0):
+                    
+            if (volume == 1):
+                swingSpeed = 100
+                
+            if (volume == 2):
+                swingSpeed = 50
+                
+            if (volume == 3):
+                swingSpeed = 25
+                
+            if (volume == 4):
+                swingSpeed = 0                
+                            
+            print("SWING: " + str(swingSpeed))
+            
+            for angle in range(120):
+                self.servo_write(angle)
+                time.sleep_ms(0)  # Short delay for smooth movement
+                
+            for angle in range(120,140):
+                self.servo_write(angle)
+                time.sleep_ms(swingSpeed)  # Short delay for smooth movement
 
-        # Sweep the servo back from 180 to 0 degrees
-        for angle in range(140, -1, -1):
-            self.servo_write(angle)
-            time.sleep_ms(40)  # Short delay for smooth movement
+            # Sweep the servo back from 180 to 0 degrees
+            for angle in range(140, -1, -1):
+                self.servo_write(angle)
+                time.sleep_ms(20)  # Short delay for smooth movement
             
 
-    def quietChime(self):
-                        
-        # Sweep the servo from 0 to 120 degrees
-        for angle in range(120):
-            self.servo_write(angle)
-            time.sleep_ms(10)  # Short delay for smooth movement
-            
-        for angle in range(120,140):
-            self.servo_write(angle)
-            time.sleep_ms(40)  # Short delay for smooth movement            
-
-        # Sweep the servo back from 180 to 0 degrees
-        for angle in range(140, -1, -1):
-            self.servo_write(angle)
-            time.sleep_ms(00)  # Short delay for smooth movement
-
-    def hourlyChime(self, hour, loud):
+    def hourlyChime(self, hour, volume):
               
         if (hour == 0):
             hour = 12 # Strike 12 at midnight
             
         if (hour > 12):
-            hour = hour -12 # convert from 24 to 12 hour clock to reduce the number of dongs
+            hour = hour - 12 # convert from 24 to 12 hour clock to reduce the number of dongs
 
         for x in range(hour):
             print("Dong " + str(x))
-            
-            if (loud):
-                self.loudChime()
-            else:
-                self.quietChime()
+            self.chime(volume)
          
 ##############################
             
@@ -289,16 +288,85 @@ class Button(object):
         # Initialize the onboard LED of the Raspberry Pi Pico W
         self.led = Pin('LED', Pin.OUT)
 
-    def chime(self, servo, loud):
+    def chime(self, servo, volume):
         if self.button.value() == 1:  # Check if the button is pressed
-            self.led.value(1)  # Turn on the LED and start a test chime
-            
-            if (loud):
-                servo.loudChime()
-            else:
-                servo.quietChime()
+            self.led.value(1)  # Turn on the LED and start a test chime      
+            servo.chime(volume)
         else:
             self.led.value(0)  # Turn off the LED
+            
+class ChimeButton(Button):
+
+    def __init__(self, pinNumber):     
+        # Set GPIO 17 as an input pin to read the button state
+        self.button = Pin(pinNumber, Pin.IN)
+
+        # Initialize the onboard LED of the Raspberry Pi Pico W
+        self.led = Pin('LED', Pin.OUT)
+
+    def chime(self, servo, volume):
+        if self.button.value() == 1:  # Check if the button is pressed
+            self.led.value(1)  # Turn on the LED and start a test chime      
+            servo.chime(volume)
+
+        else:
+            self.led.value(0)  # Turn off the LED
+            
+class VolumeButton(Button):
+
+    def __init__(self, pinNumber):     
+        # Set GPIO 17 as an input pin to read the button state
+        self.button = Pin(pinNumber, Pin.IN)
+
+        # Initialize the onboard LED of the Raspberry Pi Pico W
+        self.led1 = Pin(8, Pin.OUT)
+        self.led2 = Pin(9, Pin.OUT)
+        self.led3 = Pin(10, Pin.OUT)
+        self.led4 = Pin(11, Pin.OUT)
+
+    def volume(self, volume):
+        
+        MAX_VOLUME = 4
+        
+        if self.button.value() == 1:  # Check if the button is pressed
+            volume = volume + 1
+            
+            if (volume > MAX_VOLUME):
+                volume = 0
+                
+        print ("Volume: " + str(volume))
+            
+        if (volume == 0):
+                self.led1.value(0)  
+                self.led2.value(0)
+                self.led3.value(0)
+                self.led4.value(0)
+                
+        elif (volume == 1):
+                self.led1.value(1)  
+                self.led2.value(0)
+                self.led3.value(0)
+                self.led4.value(0)
+
+        elif (volume == 2):
+                self.led1.value(1)  
+                self.led2.value(1)
+                self.led3.value(0)
+                self.led4.value(0)
+
+        elif (volume == 3):
+                self.led1.value(1)  
+                self.led2.value(1)
+                self.led3.value(1)
+                self.led4.value(0)
+
+        elif (volume == 4):
+                self.led1.value(1)  
+                self.led2.value(1)
+                self.led3.value(1)
+                self.led4.value(1)
+        
+        return volume             
             
 # Continuously display current datetime every  second
 clock = Clock()    
@@ -315,8 +383,10 @@ neoPixel.pixels_fill(NeoPixelRing.BLACK)
 
 color = neoPixel.getNextColor()
 
-button1 = Button(17)
-button2 = Button(15)
+button1 = ChimeButton(17)
+button2 = VolumeButton(15)
+
+volume = 4
 
 while True:
 
@@ -339,18 +409,16 @@ while True:
         
         neoPixel.tick(color, sec)   
              
-        if (minute == 0 and sec < 5):
+        if (minute == 0 and sec == 0):
             neoPixel.rainbow_cycle(0)
-            servoMotor.hourlyChime(hour, loud)
+            servoMotor.hourlyChime(hour, volume)
             neoPixel.pixels_fill(NeoPixelRing.BLACK)
     else:
         neoPixel.pixels_fill(NeoPixelRing.BLACK)
         neoPixel.pixels_show()
         
-    button1.chime(servoMotor, False)        
-    button2.chime(servoMotor, True)
-    loud = False
-    #loud = button3.toggleLoudness()         
+    button1.chime(servoMotor, volume)
+    volume = button2.volume(volume)
              
-    time.sleep(1)
+    time.sleep(0.5)
     
