@@ -150,12 +150,21 @@ class Clock(object):
         self.ds.date_time()
 
         # Set DS1302 datetime to 2024-01-01 Monday 00:00:00
-        #self.ds.date_time([2024, 12, 10, 2, 11, 39, 00])  # (year,month,day,weekday,hour,minute,second)
+        #self.ds.date_time([2024, 12, 12, 2, 11, 17, 00])  # (year,month,day,weekday,hour,minute,second)
 
         # Set seconds to 10
         #self.ds.second(58)
+        
+    def setHour(self, hour):           
+        self.ds.hour(hour)
+        
+    def setMinute(self, minute):           
+        self.ds.minute(minute)
+        
+    def setSecond(self, second):           
+        self.ds.second(second)        
 
-    def  getDateTime(self):    
+    def getDateTime(self):    
 
         datetime = self.ds.date_time()
         return datetime    
@@ -238,13 +247,13 @@ class ServoMotor(object):
         if (volume > 0):
                     
             if (volume == 1):
-                swingSpeed = 100
-                
-            if (volume == 2):
                 swingSpeed = 50
                 
+            if (volume == 2):
+                swingSpeed = 30
+                
             if (volume == 3):
-                swingSpeed = 25
+                swingSpeed = 15
                 
             if (volume == 4):
                 swingSpeed = 0                
@@ -262,7 +271,7 @@ class ServoMotor(object):
             # Sweep the servo back from 180 to 0 degrees
             for angle in range(140, -1, -1):
                 self.servo_write(angle)
-                time.sleep_ms(20)  # Short delay for smooth movement
+                time.sleep_ms(40)  # Short delay for smooth movement
             
 
     def hourlyChime(self, hour, volume):
@@ -281,42 +290,20 @@ class ServoMotor(object):
             
 class Button(object):
 
+    
     def __init__(self, pinNumber):     
-        # Set GPIO 17 as an input pin to read the button state
+        # Set input pin to read the button state
         self.button = Pin(pinNumber, Pin.IN)
 
-        # Initialize the onboard LED of the Raspberry Pi Pico W
-        self.led = Pin('LED', Pin.OUT)
-
-    def chime(self, servo, volume):
-        if self.button.value() == 1:  # Check if the button is pressed
-            self.led.value(1)  # Turn on the LED and start a test chime      
-            servo.chime(volume)
-        else:
-            self.led.value(0)  # Turn off the LED
-            
-class ChimeButton(Button):
-
-    def __init__(self, pinNumber):     
-        # Set GPIO 17 as an input pin to read the button state
-        self.button = Pin(pinNumber, Pin.IN)
-
-        # Initialize the onboard LED of the Raspberry Pi Pico W
-        self.led = Pin('LED', Pin.OUT)
-
-    def chime(self, servo, volume):
-        if self.button.value() == 1:  # Check if the button is pressed
-            self.led.value(1)  # Turn on the LED and start a test chime      
-            servo.chime(volume)
-
-        else:
-            self.led.value(0)  # Turn off the LED
             
 class VolumeButton(Button):
 
-    def __init__(self, pinNumber):     
-        # Set GPIO 17 as an input pin to read the button state
-        self.button = Pin(pinNumber, Pin.IN)
+    def __init__(self, pinNumber):
+        
+        super().__init__(pinNumber)
+        
+        # Initialize the onboard LED of the Raspberry Pi Pico W
+        self.led = Pin('LED', Pin.OUT)
 
         # Initialize the onboard LED of the Raspberry Pi Pico W
         self.led1 = Pin(8, Pin.OUT)
@@ -324,7 +311,7 @@ class VolumeButton(Button):
         self.led3 = Pin(10, Pin.OUT)
         self.led4 = Pin(11, Pin.OUT)
 
-    def volume(self, volume):
+    def volume(self, volume, servo):
         
         MAX_VOLUME = 4
         
@@ -334,39 +321,72 @@ class VolumeButton(Button):
             if (volume > MAX_VOLUME):
                 volume = 0
                 
-        print ("Volume: " + str(volume))
-            
-        if (volume == 0):
-                self.led1.value(0)  
-                self.led2.value(0)
-                self.led3.value(0)
-                self.led4.value(0)
+            print ("Volume: " + str(volume))
                 
-        elif (volume == 1):
-                self.led1.value(1)  
-                self.led2.value(0)
-                self.led3.value(0)
-                self.led4.value(0)
+            if (volume == 0):
+                    self.led1.value(0)  
+                    self.led2.value(0)
+                    self.led3.value(0)
+                    self.led4.value(0)
+                    
+            elif (volume == 1):
+                    self.led1.value(1)  
+                    self.led2.value(0)
+                    self.led3.value(0)
+                    self.led4.value(0)
 
-        elif (volume == 2):
-                self.led1.value(1)  
-                self.led2.value(1)
-                self.led3.value(0)
-                self.led4.value(0)
+            elif (volume == 2):
+                    self.led1.value(1)  
+                    self.led2.value(1)
+                    self.led3.value(0)
+                    self.led4.value(0)
 
-        elif (volume == 3):
-                self.led1.value(1)  
-                self.led2.value(1)
-                self.led3.value(1)
-                self.led4.value(0)
+            elif (volume == 3):
+                    self.led1.value(1)  
+                    self.led2.value(1)
+                    self.led3.value(1)
+                    self.led4.value(0)
 
-        elif (volume == 4):
-                self.led1.value(1)  
-                self.led2.value(1)
-                self.led3.value(1)
-                self.led4.value(1)
+            elif (volume == 4):
+                    self.led1.value(1)  
+                    self.led2.value(1)
+                    self.led3.value(1)
+                    self.led4.value(1)
+                    
+
+            self.led.value(1)  # Turn on the LED and start a test chime      
+            servo.chime(volume)
+            self.led.value(0)  # Turn off the LED                
         
-        return volume             
+        return volume
+    
+class HourButton(Button):
+
+    def incrementHour(self, clock, hour):
+        if self.button.value() == 1:  # Check if the button is pressed    
+            hour = hour + 1
+            
+            if hour == 24:
+                hour = 0
+                
+            clock.setHour(hour)
+            
+class MinuteButton(Button):
+
+    def incrementMinute(self, clock, minute):
+        if self.button.value() == 1:  # Check if the button is pressed    
+            minute = minute + 1
+            
+            if minute == 60:
+                minute = 0
+                
+            clock.setMinute(minute)
+
+class SecondButton(Button):
+
+    def zeroSecond(self, clock):
+        if self.button.value() == 1:  # Check if the button is pressed               
+            clock.setSecond(0)
             
 # Continuously display current datetime every  second
 clock = Clock()    
@@ -383,8 +403,10 @@ neoPixel.pixels_fill(NeoPixelRing.BLACK)
 
 color = neoPixel.getNextColor()
 
-button1 = ChimeButton(17)
-button2 = VolumeButton(15)
+button1 = VolumeButton(17)
+button2 = HourButton(15)
+button3 = MinuteButton(12)
+button4 = SecondButton(13)
 
 volume = 4
 
@@ -417,8 +439,10 @@ while True:
         neoPixel.pixels_fill(NeoPixelRing.BLACK)
         neoPixel.pixels_show()
         
-    button1.chime(servoMotor, volume)
-    volume = button2.volume(volume)
+    volume = button1.volume(volume, servoMotor)
+    button2.incrementHour(clock, hour)
+    button3.incrementMinute(clock, minute)
+    button4.zeroSecond(clock)
              
     time.sleep(0.5)
     
