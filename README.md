@@ -1,2 +1,2 @@
 # clock
-MicroPython to control Raspberry Pico clock an chime
+MicroPython to control Raspberry Pico clock and chime
