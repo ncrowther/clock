@@ -224,7 +224,7 @@ class NeoPixelRing(object):
         
         pixel = math.ceil(pixel)
         
-        print(pixel)
+        #print(pixel)
         
         #self.pixels_set(previousPixel, self.BLACK)
         self.pixels_set(pixel, color)
