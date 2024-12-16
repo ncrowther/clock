@@ -5,6 +5,7 @@ import time
 import array
 import rp2
 import math
+import dht
 
 """
 Clock
@@ -50,6 +51,23 @@ def ws2812():
     nop()                   .side(0)    [T2 - 1]
     wrap()
    
+########################################################################## 
+class TemperatureHumiditySensor(object):
+    
+    GPIO_PIN = 28
+    
+    def __init__(self):   
+        # Initialize DHT11 sensor on GPIO
+        self.sensor = dht.DHT11(machine.Pin(self.GPIO_PIN))
+
+    def read(self):
+        self.sensor.measure()
+        
+        return [self.sensor.temperature(), self.sensor.humidity()]
+        #print("Temperature:" ,d.temperature())  # Print temperature
+        #print("Humidity:" ,d.humidity())  # Print humidity
+        
+  
 ##########################################################################
 """
 NeoPixelRing class for controlling NeoPixel rings.
@@ -384,24 +402,24 @@ class OledDisplay(object):
     Returns:
         None
     """
-    def showDateTime(self, year, month, day, hour, minute, sec):
+
+    def show(self, year, month, day, hour, minute, sec, sensor):
         
         showDate = "{:0>2}/{:0>2}/{:0>2}".format(day,month,year)
-      
         showTime = "{:0>2}:{:0>2}:{:0>2}".format(hour,minute,sec)
-    
+        
+        d = sensor.read()
+               
         # clear 
         self.oledClearBlack()
 
         # Display text on the OLED screen
-        self.oled.text('Date ' + showDate, 0, 0)  # Display "Hello," at position (0, 0)
-        #oled.text(date, 0, 16)  # Display at position (0, 16)
-        
-        self.oled.text('Time ' + showTime, 0, 32)  # Display "Hello," at position (0, 0)
-        #oled.text(time, 0, 48)  # Display at position (0, 16)
+        self.oled.text('Date: ' + showDate, 0, 0)   
+        self.oled.text('Time: ' + showTime, 0, 16)
+        self.oled.text('Temp: ' + str(d[0]) + " C", 0, 32)         
+        self.oled.text('Humidity: ' + str(d[1]) + "%", 0, 48)
         
         self.oled.show()
-
 
 ##############################
     
@@ -665,7 +683,9 @@ class SecondButton(Button):
             
 # Continuously display current datetime every second and chime hourly
 def main():
-    clock = Clock()    
+    clock = Clock()
+    sensor = TemperatureHumiditySensor()
+
     display = OledDisplay()
 
     display.oledClearWhite()
@@ -698,7 +718,7 @@ def main():
         minute = datetime[5]
         sec = datetime[6]
             
-        display.showDateTime(year, month, day, hour, minute, sec)
+        display.show(year, month, day, hour, minute, sec, sensor)
         
         if (hour in [9,10,11,12,13,14,15,16,17,18,19,20,21,22]):
             
