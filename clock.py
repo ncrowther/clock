@@ -6,6 +6,8 @@ import array
 import rp2
 import math
 import dht
+import random
+
 
 """
 Clock
@@ -106,7 +108,7 @@ Methods:
 class NeoPixelRing(object):
 
     # Configure the number of WS2812 LEDs.
-    NUM_LEDS = 16 
+    NUM_LEDS = 60 
     PIN_NUM = 0
     BRIGHTNESS = 0.1
     
@@ -234,15 +236,13 @@ class NeoPixelRing(object):
         None
     """            
     def tick(self, color, sec):
-        
-        reverseSecond = abs(sec - 59)
             
-        pixel = ((reverseSecond / 59)  * self.NUM_LEDS - 1)
+        #pixel = ((sec / 60)  * self.NUM_LEDS - 1)
         #previousPixel = 0 if (pixel >= self.NUM_LEDS-3) else pixel + 1
         
-        pixel = math.ceil(pixel)
+        pixel = sec #math.ceil(pixel)
         
-        #print(pixel)
+        print(pixel)
         
         #self.pixels_set(previousPixel, self.BLACK)
         self.pixels_set(pixel, color)
@@ -327,10 +327,7 @@ class Clock(object):
         self.ds.date_time()
 
         # Set DS1302 datetime to 2024-01-01 Monday 00:00:00
-        #self.ds.date_time([2024, 12, 12, 2, 11, 17, 00])  # (year,month,day,weekday,hour,minute,second)
-
-        # Set seconds to 10
-        #self.ds.second(58)
+        #self.ds.date_time([2024, 12, 19, 4, 10, 34, 00])  # (year,month,day,weekday,hour,minute,second)
         
     def setHour(self, hour):           
         self.ds.hour(hour)
@@ -539,6 +536,28 @@ class Button(object):
         # Set input pin to read the button state
         self.button = Pin(pinNumber, Pin.IN)
 
+
+class Candle(object):
+    
+    def __init__(self, pin):   
+        self.led = Pin(pin, Pin.OUT)
+        
+    def on(self):
+        self.led.value(1)
+        
+    def off(self):
+        self.led.value(0)
+           
+    def flicker(self):
+        for x in range(50):
+            rnd = random.randrange(1, 100)
+            sleep = rnd * 0.0001
+            self.off()
+            time.sleep(sleep)
+            self.on()
+            time.sleep(sleep)
+        
+           
 """
 A class representing a volume button.
 
@@ -686,6 +705,9 @@ def main():
     clock = Clock()
     sensor = TemperatureHumiditySensor()
 
+    candleLeft = Candle(27)
+    candleRight = Candle(22)
+    
     display = OledDisplay()
 
     display.oledClearWhite()
@@ -707,7 +729,7 @@ def main():
     volume = 4
 
     while True:
-
+        
         datetime = clock.getDateTime()
         
         year = datetime[0]
@@ -717,31 +739,43 @@ def main():
         hour = datetime[4]
         minute = datetime[5]
         sec = datetime[6]
-            
-        display.show(year, month, day, hour, minute, sec, sensor)
         
-        if (hour in [9,10,11,12,13,14,15,16,17,18,19,20,21,22]):
+        if (sec % 10 == 0):
+            display.show(year, month, day, hour, minute, sec, sensor)
+        
+        if (hour in [8,9,10,11,12,13,14,15,16,17,18,19,20,21,22]):
             
+            candleRight.on()
+            candleLeft.on()
+        
             if (sec == 0):
                 color = neoPixel.getNextColor()
             
-            neoPixel.tick(color, sec)   
+            neoPixel.tick(color, sec)
+            
+            if (minute == 59 and sec == 0):
+                candleRight.off()
+                candleLeft.off()
+                neoPixel.rainbow_cycle(0)
+                candleRight.on()
+                candleLeft.on()
                 
             if (minute == 0 and sec == 0):
-                neoPixel.rainbow_cycle(0)
                 servoMotor.hourlyChime(hour, volume)
                 neoPixel.pixels_fill(NeoPixelRing.BLACK)
         else:
             neoPixel.pixels_fill(NeoPixelRing.BLACK)
             neoPixel.pixels_show()
+            candleRight.off()
+            candleLeft.off() 
             
         volume = button1.volume(volume, servoMotor)
         button2.incrementHour(clock, hour)
         button3.incrementMinute(clock, minute)
         button4.zeroSecond(clock)
-                
+        
+  
         time.sleep(0.5)
     
 if __name__ == "__main__":
     main()    
-    
