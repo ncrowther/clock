@@ -14,13 +14,13 @@ import math
 import machine, neopixel
 
 # number of leds in the strip
-LED_COUNT = 20
+LED_COUNT = 16
 # base color
-r = 99
-g = 31
-b = 6
+r = 255
+g = 120
+b = 10
 
-np = neopixel.NeoPixel(machine.Pin(4), LED_COUNT)
+np = neopixel.NeoPixel(machine.Pin(16), LED_COUNT) #28
 
 def show():
    np.write()
@@ -101,3 +101,4 @@ def main():
         wait(2)
 
 main()
+
