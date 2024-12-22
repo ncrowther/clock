@@ -98,7 +98,7 @@ def main():
         now = time.ticks_ms()
         [l.update(now) for l in candles]
         show()
-        wait(2)
+        wait(60)
 
 main()
 
