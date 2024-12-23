@@ -13,6 +13,49 @@ import uos
 import math
 import machine, neopixel
 
+
+class DistanceSensor(object):
+    
+    GPIO_IN_PIN = 12
+    GPIO_OUT_PIN = 13
+    
+    def __init__(self):   
+        # Define pin numbers for ultrasonic sensor's TRIG and ECHO pins
+        self.TRIG = machine.Pin(self.GPIO_OUT_PIN, machine.Pin.OUT)  # TRIG pin set as output
+        self.ECHO = machine.Pin(self.GPIO_IN_PIN, machine.Pin.IN)  # ECHO pin set as input
+
+    def measure(self):
+        # Function to calculate distance in centimeters
+        self.TRIG.low()  # Set TRIG low
+        time.sleep_us(2)  # Wait for 2 microseconds
+        self.TRIG.high()  # Set TRIG high
+        time.sleep_us(10)  # Wait for 10 microseconds
+        self.TRIG.low()  # Set TRIG low again
+
+        # Wait for ECHO pin to go high
+        count = 0
+        while count < 100000 and not self.ECHO.value():
+            count = count + 1
+            pass
+
+        time1 = time.ticks_us()  # Record time when ECHO goes high
+
+        # Wait for ECHO pin to go low
+        count = 0
+        while count < 100000 and self.ECHO.value():
+            count = count + 1
+            pass
+
+        time2 = time.ticks_us()  # Record time when ECHO goes low
+
+        # Calculate the duration of the ECHO pin being high
+        during = time.ticks_diff(time2, time1)
+
+        # Return the calculated distance (using speed of sound)
+        return during * 340 / 2 / 10000  # Distance in centimeters
+
+
+# ======================================================================================
 # number of leds in the strip
 LED_COUNT = 16
 # base color
@@ -40,7 +83,35 @@ def randint(min, max):
 def c_brightness(c, brightness):
     return max(0, min(c * brightness / 100, 255))
 
-class LED_light(object):
+class EmberLight(object):
+    
+    RED = 255
+    GREEN = 60
+    BLUE = 10
+
+    def __init__(self, pos):
+        self.time = 0
+        self.pos = pos
+
+    def update(self, delta):
+        self.time = self.time - delta
+        if self.time <= 0:
+            self.mode()
+            self.duration()
+
+    def set_brightness(self, brightness):
+        setPixelColor(self.pos, Color(c_brightness(self.RED, brightness), c_brightness(self.GREEN, brightness), c_brightness(self.BLUE, brightness)))
+
+    def mode(self):
+        brightness = 40
+        self.set_brightness(brightness)
+
+    def duration(self):
+        duration = 20
+        self.time = duration
+
+            
+class GlowLight(object):
     def __init__(self, pos):
         self.time = 0
         self.pos = pos
@@ -92,13 +163,30 @@ class LED_light(object):
         else:
             self.time = randint(0, 10)
 
-def main():
-    candles = [LED_light(i) for i in range(LED_COUNT)]
-    while True:
-        now = time.ticks_ms()
-        [l.update(now) for l in candles]
-        show()
-        wait(60)
+def lightCandles(candles):
+    now = time.ticks_ms()
+    [l.update(now) for l in candles]
+    show()
 
-main()
+
+wait(10)
+
+glowCandles = [GlowLight(i) for i in range(LED_COUNT)]
+emberCandles = [EmberLight(i) for i in range(LED_COUNT)]
+
+distanceSensor = DistanceSensor()
+
+
+while True:
+    
+    dis = distanceSensor.measure()  # Get distance from sensor
+    print("Distance: %.2f cm" % dis)  # Print distance
+
+    if (dis < 120):
+        lightCandles(glowCandles)
+    else:
+        lightCandles(emberCandles)
+        
+    wait(60)
+
 
