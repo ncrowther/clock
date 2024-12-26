@@ -52,7 +52,29 @@ def ws2812():
     label("do_zero")
     nop()                   .side(0)    [T2 - 1]
     wrap()
-   
+
+########################################################################## 
+class PhotoResistor(object):
+
+    ADC_PIN = 26
+    DARK_THRESHOLD = 50000
+    
+    def __init__(self):   
+        # Initialize DHT11 sensor on GPIO
+        self.photoresistor = machine.ADC(self.ADC_PIN)  # Initialize ADC on pin 26
+
+    def isDark(self):
+        lightLevel = self.photoresistor.read_u16()  # Read analog value
+        #print("Light level: " + str(lightLevel))  # Print the value
+        
+        if (lightLevel > self.DARK_THRESHOLD):
+            #print("Light ON")
+            return True
+        else:
+            #print("LIGHT OFF")
+            return False
+
+
 ########################################################################## 
 class TemperatureHumiditySensor(object):
     
@@ -122,7 +144,7 @@ class NeoPixelRing(object):
     PURPLE = (180, 0, 255)
     WHITE = (255, 255, 255)
     #COLORS = (WHITE, RED, WHITE, GREEN, WHITE, BLUE, CYAN, PURPLE, WHITE, BLUE)
-    COLORS = (WHITE, CYAN, BLUE, PURPLE)
+    COLORS = (WHITE, CYAN, BLUE, PURPLE, RED, GREEN, YELLOW)
     NUMBER_OF_COLORS = len(COLORS)
 
     def __init__(self): 
@@ -217,9 +239,8 @@ class NeoPixelRing(object):
         None
     """   
     def color_chase(self, color, wait):
-        for i in range(NUM_LEDS)[::-1]:
-            previousPixel = 0 if (i == self.NUM_LEDS-1) else i + 1
-            #print(i, previousPixel)
+        for i in range(self.NUM_LEDS):
+            previousPixel = 59 if (i == 0) else i - 1
             self.pixels_set(previousPixel, self.BLACK)
             self.pixels_set(i, color)
             time.sleep(wait)
@@ -242,7 +263,7 @@ class NeoPixelRing(object):
         
         pixel = sec #math.ceil(pixel)
         
-        print(pixel)
+        #print(pixel)
         
         #self.pixels_set(previousPixel, self.BLACK)
         self.pixels_set(pixel, color)
@@ -404,6 +425,8 @@ class OledDisplay(object):
         
         showDate = "{:0>2}/{:0>2}/{:0>2}".format(day,month,year)
         showTime = "{:0>2}:{:0>2}:{:0>2}".format(hour,minute,sec)
+        
+        print("Time: " + showTime)
         
         d = sensor.read()
                
@@ -699,11 +722,27 @@ class SecondButton(Button):
     def zeroSecond(self, clock):
         if self.button.value() == 1:  # Check if the button is pressed               
             clock.setSecond(0)
-            
+
+def paintSeconds(minute, sec, neoPixel, color):
+
+    if (sec == 0):
+        color = neoPixel.getNextColor()
+        
+    if (minute in [59] and sec < 45):
+        neoPixel.rainbow_cycle(0)
+    elif (minute in [14, 29, 44]):
+        neoPixel.color_chase(color, 0)
+         
+    neoPixel.tick(color, sec)
+   
+    return color
+    
 # Continuously display current datetime every second and chime hourly
 def main():
     clock = Clock()
     sensor = TemperatureHumiditySensor()
+    
+    photoResistor = PhotoResistor()
 
     candleLeft = Candle(27)
     candleRight = Candle(22)
@@ -740,25 +779,19 @@ def main():
         minute = datetime[5]
         sec = datetime[6]
         
-        if (sec % 10 == 0):
-            display.show(year, month, day, hour, minute, sec, sensor)
+        display.show(year, month, day, hour, minute, sec, sensor)
         
-        if (hour in [8,9,10,11,12,13,14,15,16,17,18,19,20,21,22]):
+        if (hour in [9,10,11,12,13,14,15,16,17,18,19,20,21,22]):
             
-            candleRight.on()
-            candleLeft.on()
-        
-            if (sec == 0):
-                color = neoPixel.getNextColor()
-            
-            neoPixel.tick(color, sec)
-            
-            if (minute == 59 and sec == 0):
+            if (photoResistor.isDark()):
+                candleRight.on()
+                candleLeft.on()                
+                color = paintSeconds(minute, sec, neoPixel, color)
+            else:
                 candleRight.off()
                 candleLeft.off()
-                neoPixel.rainbow_cycle(0)
-                candleRight.on()
-                candleLeft.on()
+                neoPixel.pixels_fill(NeoPixelRing.BLACK)
+                neoPixel.pixels_show()
                 
             if (minute == 0 and sec == 0):
                 servoMotor.hourlyChime(hour, volume)
@@ -774,7 +807,6 @@ def main():
         button3.incrementMinute(clock, minute)
         button4.zeroSecond(clock)
         
-  
         time.sleep(0.5)
     
 if __name__ == "__main__":
