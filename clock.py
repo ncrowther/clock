@@ -1,4 +1,4 @@
-from machine import Pin, I2C
+from machine import Pin, I2C, PWM
 import ssd1306
 import ds1302
 import time
@@ -8,7 +8,62 @@ import math
 import dht
 import random
 
+##############################
+"""
+LightStar - interface to RGB LED
 
+Methods:
+    illuminate
+"""
+class LightStar(object):
+
+    def __init__(self): 
+        # Initialize PWM for each color channel of an RGB LED
+        self.red = PWM(Pin(2))  # Red channel on GPIO pin 26
+        self.green = PWM(Pin(6))  # Green channel on GPIO pin 27
+        self.blue = PWM(Pin(7))  # Blue channel on GPIO pin 28
+
+        # Set 1000 Hz frequency for all channels
+        self.red.freq(1000)
+        self.green.freq(1000)
+        self.blue.freq(1000)
+        
+        self.MAX_BRIGHTNESS = 65535
+        self.MIN_BRIGHTNESS = 5535
+
+    # Function to set RGB LED color
+    def light(self, r, g, b):
+        self.red.duty_u16(r)  # Red intensity
+        self.green.duty_u16(g)  # Green intensity
+        self.blue.duty_u16(b)  # Blue intensity
+
+    # Method to set RGB LED color
+    def off(self):
+        self.light(0, 0, 0)  # White
+        
+    # Method to set RGB LED color
+    def illuminate(self, hour):
+                  
+        MULTIPLIER = 3600
+        greenBrightness = 32000
+        
+        redBrightness = (hour * MULTIPLIER) +  20000
+        
+        hour  = abs(hour - 23)
+        blueBrightness = abs((hour * MULTIPLIER) - 10000)
+        
+        if (redBrightness >= self.MAX_BRIGHTNESS):
+            redBrightness = self.MAX_BRIGHTNESS
+            
+        if (blueBrightness >= self.MAX_BRIGHTNESS):
+            blueBrightness = 0           
+          
+        print("Red Brightness: " + str(redBrightness))
+        print("Blue Brightness: " + str(blueBrightness))
+        
+        self.light(redBrightness, greenBrightness, blueBrightness)  
+  
+    
 """
 Clock
 ======
@@ -547,15 +602,6 @@ class Candle(object):
         
     def off(self):
         self.led.value(0)
-           
-    def flicker(self):
-        for x in range(50):
-            rnd = random.randrange(1, 100)
-            sleep = rnd * 0.0001
-            self.off()
-            time.sleep(sleep)
-            self.on()
-            time.sleep(sleep)
         
            
 """
@@ -706,20 +752,21 @@ def paintSeconds(minute, sec, neoPixel, color):
         color = neoPixel.getNextColor()
         
     if (minute == 59 and sec < 45):
-        neoPixel.rainbow_cycle(0)
-        
+        neoPixel.rainbow_cycle(0)      
     elif (minute in [14, 29, 44]):
-        neoPixel.rainbow_cycle(0)
-    else:
-       neoPixel.color_chase(color, 0)
-       
+        neoPixel.color_chase(color, 0)
+      
     neoPixel.tick(color, sec)
    
     return color
     
 # Continuously display current datetime every second and chime hourly
 def main():
+    
+    lightStar = LightStar()
+
     clock = Clock()
+    
     sensor = TemperatureHumiditySensor()
     
     photoResistor = PhotoResistor()
@@ -767,10 +814,12 @@ def main():
                 candleRight.on()
                 candleLeft.on()                
                 color = paintSeconds(minute, sec, neoPixel, color)
+                lightStar.illuminate(hour)
             else:
                 candleRight.off()
                 candleLeft.off()
                 neoPixel.pixels_fill(NeoPixelRing.BLACK)
+                lightStar.off()
                 
             if (minute == 0 and sec == 0):
                 if (month == 1 and day == 1 and hour == 0):
@@ -793,3 +842,5 @@ def main():
     
 if __name__ == "__main__":
     main()    
+
+
