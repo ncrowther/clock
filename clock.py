@@ -143,7 +143,6 @@ class NeoPixelRing(object):
     BLUE = (0, 0, 255)
     PURPLE = (180, 0, 255)
     WHITE = (255, 255, 255)
-    #COLORS = (WHITE, RED, WHITE, GREEN, WHITE, BLUE, CYAN, PURPLE, WHITE, BLUE)
     COLORS = (WHITE, CYAN, BLUE, PURPLE, RED, GREEN, YELLOW)
     NUMBER_OF_COLORS = len(COLORS)
 
@@ -161,6 +160,8 @@ class NeoPixelRing(object):
         self.colorIndex = 0
 
     """
+    Private
+    
     Set the brightness of the pixels.
 
     Args:
@@ -173,6 +174,8 @@ class NeoPixelRing(object):
         self.BRIGHTNESS = level
 
     """
+    Private
+    
     Show the pixels with the current brightness level.
 
     Returns:
@@ -189,6 +192,8 @@ class NeoPixelRing(object):
         time.sleep_ms(10)
 
     """
+    Private
+    
     Set the color of a specific pixel.
 
     Args:
@@ -200,6 +205,30 @@ class NeoPixelRing(object):
     """
     def pixels_set(self, i, color):
         self.ar[i] = (color[1]<<16) + (color[0]<<8) + color[2]
+        
+    """
+    Private
+    
+    Generate a color value based on the input position.
+
+    Args:
+        pos (int): The position value, from 0 to 255.
+
+    Returns:
+        tuple: A tuple of three integers representing the RGB color values.
+    """     
+    def wheel(self, pos):
+        # Input a value 0 to 255 to get a color value.
+        # The colours are a transition r - g - b - back to r.
+        if pos < 0 or pos > 255:
+            return (0, 0, 0)
+        if pos < 85:
+            return (255 - pos * 3, pos * 3, 0)
+        if pos < 170:
+            pos -= 85
+            return (0, 255 - pos * 3, pos * 3)
+        pos -= 170
+        return (pos * 3, 0, 255 - pos * 3)        
 
     """
     Fill all pixels with a specific color.
@@ -213,23 +242,10 @@ class NeoPixelRing(object):
     def pixels_fill(self, color):
         for i in range(len(self.ar)):
             self.pixels_set(i, color)
-
-    """
-    Tick the clock ring by changing the color of each pixel in reverse order.
-
-    Args:
-        color (tuple): A tuple of three integers representing the RGB color values.
-
-    Returns:
-        None
-    """
-    def clockTick(self, color):
-        for i in range(self.NUM_LEDS)[::-1]:
-            self.pixels_set(i, color)
-            self.pixels_show()
+        self.pixels_show()
         
     """
-    Chase the color by changing the color of each pixel in reverse order.
+    Chase the color by changing the color of each pixel
 
     Args:
         color (tuple): A tuple of three integers representing the RGB color values.
@@ -256,41 +272,10 @@ class NeoPixelRing(object):
     Returns:
         None
     """            
-    def tick(self, color, sec):
-            
-        #pixel = ((sec / 60)  * self.NUM_LEDS - 1)
-        #previousPixel = 0 if (pixel >= self.NUM_LEDS-3) else pixel + 1
-        
-        pixel = sec #math.ceil(pixel)
-        
-        #print(pixel)
-        
-        #self.pixels_set(previousPixel, self.BLACK)
+    def tick(self, color, sec):     
+        pixel = sec 
         self.pixels_set(pixel, color)
-        self.pixels_show()
-     
-    """
-    Generate a color value based on the input position.
-
-    Args:
-        pos (int): The position value, from 0 to 255.
-
-    Returns:
-        tuple: A tuple of three integers representing the RGB color values.
-    """     
-    def wheel(self, pos):
-        # Input a value 0 to 255 to get a color value.
-        # The colours are a transition r - g - b - back to r.
-        if pos < 0 or pos > 255:
-            return (0, 0, 0)
-        if pos < 85:
-            return (255 - pos * 3, pos * 3, 0)
-        if pos < 170:
-            pos -= 85
-            return (0, 255 - pos * 3, pos * 3)
-        pos -= 170
-        return (pos * 3, 0, 255 - pos * 3)
-     
+        self.pixels_show()     
      
     """
     Generate a rainbow color cycle and display it on the pixels.
@@ -527,24 +512,16 @@ class ServoMotor(object):
                 time.sleep_ms(40)  # Short delay for smooth movement
             
 
-    def hourlyChime(self, hour, volume):
+    def hourlyChime(self, strikes, volume):
               
-        #if (hour == 0):
-        #    hour = 12 # Strike 12 at midnight
-        #    
-        #if (hour > 12):
-        #    hour = hour - 12 # convert from 24 to 12 hour clock to reduce the number of dongs
-        #
-        #for x in range(hour):
-        #    print("Dong " + str(x))
-        #
-        # moved out of loop so that it only dongs once
-        self.chime(volume)
+        for x in range(strikes):
+            print("Dong " + str(x))
+            self.chime(volume)
          
 ##############################
 
 """
-A class to represent a button connected to a GPIO pin.
+Represent a button connected to a GPIO pin.
 
 Args:
     pinNumber (int): The number of the GPIO pin connected to the button.
@@ -582,7 +559,7 @@ class Candle(object):
         
            
 """
-A class representing a volume button.
+Represent a volume button.
 
 Attributes:
     pinNumber (int): The pin number of the button.
@@ -728,11 +705,14 @@ def paintSeconds(minute, sec, neoPixel, color):
     if (sec == 0):
         color = neoPixel.getNextColor()
         
-    if (minute in [59] and sec < 45):
+    if (minute == 59 and sec < 45):
         neoPixel.rainbow_cycle(0)
+        
     elif (minute in [14, 29, 44]):
-        neoPixel.color_chase(color, 0)
-         
+        neoPixel.rainbow_cycle(0)
+    else:
+       neoPixel.color_chase(color, 0)
+       
     neoPixel.tick(color, sec)
    
     return color
@@ -791,14 +771,16 @@ def main():
                 candleRight.off()
                 candleLeft.off()
                 neoPixel.pixels_fill(NeoPixelRing.BLACK)
-                neoPixel.pixels_show()
                 
             if (minute == 0 and sec == 0):
-                servoMotor.hourlyChime(hour, volume)
+                if (month = 1 and day = 1 and hour == 0):
+                   servoMotor.hourlyChime(12, volume) #  Twelve strikes for new year's day
+                else:
+                   servoMotor.hourlyChime(1, volume)
+                    
                 neoPixel.pixels_fill(NeoPixelRing.BLACK)
         else:
             neoPixel.pixels_fill(NeoPixelRing.BLACK)
-            neoPixel.pixels_show()
             candleRight.off()
             candleLeft.off() 
             
