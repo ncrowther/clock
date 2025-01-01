@@ -7,7 +7,52 @@ import rp2
 import math
 import dht
 import random
+  
+    
+"""
+Clock
+======
 
+Author: Nigel T. Crowther
+Date:   16th December 2024
+
+Clock code to control:
+ -  A NeoPixel ring representing seconds,
+ -  An OLED display to show date, time, temperature and humitity
+ - A servo motor to chime hourly.
+
+The code continuously displays the current datetime on the OLED display, and updates the NeoPixel ring to show the seconds.
+If it is between 9am and 9pm, the servo motor will chime the hour.
+
+The code also allows the user to adjust the volume of the chime using a volume button.
+The user can also adjust the hour, minute, and second using separate buttons.
+
+The code uses the following libraries:
+- machine: for hardware access
+- ssd1306: for OLED display
+- ds1302: for RTC
+- time: for time-related functions
+- rp2: for Rasbperry Pi Pico hardware access
+- math: for mathematical operations
+
+The code is written in Python and is designed to run on a Raspberry Pi Pico board.
+"""
+
+    
+@rp2.asm_pio(sideset_init=rp2.PIO.OUT_LOW, out_shiftdir=rp2.PIO.SHIFT_LEFT, autopull=True, pull_thresh=24)
+def ws2812():
+    T1 = 2
+    T2 = 5
+    T3 = 3
+    wrap_target()
+    label("bitloop")
+    out(x, 1)               .side(0)    [T3 - 1]
+    jmp(not_x, "do_zero")   .side(1)    [T1 - 1]
+    jmp("bitloop")          .side(1)    [T2 - 1]
+    label("do_zero")
+    nop()                   .side(0)    [T2 - 1]
+    wrap()
+    
 ##############################
 """
 LightStar - interface to RGB LED
@@ -61,52 +106,7 @@ class LightStar(object):
         print("Red Brightness: " + str(redBrightness))
         print("Blue Brightness: " + str(blueBrightness))
         
-        self.light(redBrightness, greenBrightness, blueBrightness)  
-  
-    
-"""
-Clock
-======
-
-Author: Nigel T. Crowther
-Date:   16th December 2024
-
-Clock code to control:
- -  A NeoPixel ring representing seconds,
- -  An OLED display to show date, time, temperature and humitity
- - A servo motor to chime hourly.
-
-The code continuously displays the current datetime on the OLED display, and updates the NeoPixel ring to show the seconds.
-If it is between 9am and 9pm, the servo motor will chime the hour.
-
-The code also allows the user to adjust the volume of the chime using a volume button.
-The user can also adjust the hour, minute, and second using separate buttons.
-
-The code uses the following libraries:
-- machine: for hardware access
-- ssd1306: for OLED display
-- ds1302: for RTC
-- time: for time-related functions
-- rp2: for Rasbperry Pi Pico hardware access
-- math: for mathematical operations
-
-The code is written in Python and is designed to run on a Raspberry Pi Pico board.
-"""
-
-    
-@rp2.asm_pio(sideset_init=rp2.PIO.OUT_LOW, out_shiftdir=rp2.PIO.SHIFT_LEFT, autopull=True, pull_thresh=24)
-def ws2812():
-    T1 = 2
-    T2 = 5
-    T3 = 3
-    wrap_target()
-    label("bitloop")
-    out(x, 1)               .side(0)    [T3 - 1]
-    jmp(not_x, "do_zero")   .side(1)    [T1 - 1]
-    jmp("bitloop")          .side(1)    [T2 - 1]
-    label("do_zero")
-    nop()                   .side(0)    [T2 - 1]
-    wrap()
+        self.light(redBrightness, greenBrightness, blueBrightness)      
 
 ########################################################################## 
 class PhotoResistor(object):
