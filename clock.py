@@ -822,10 +822,7 @@ def main():
                 lightStar.off()
                 
             if (minute == 0 and sec == 0):
-                if (month == 1 and day == 1 and hour == 0):
-                   servoMotor.hourlyChime(12, volume) #  Twelve strikes for new year's day
-                else:
-                   servoMotor.hourlyChime(1, volume)
+                servoMotor.hourlyChime(1, volume)
                     
                 neoPixel.pixels_fill(NeoPixelRing.BLACK)
         else:
